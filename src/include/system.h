@@ -2,43 +2,48 @@
 #define SYSTEM_H
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
 
-#include "./helper.h"
-#include "./opcode.h"
+#include "io.h"
 
 #define CHIP8_SCREEN_WIDTH 64
 #define CHIP8_SCREEN_HEIGHT 32
-
 #define CLOCK_SPEED 700
 #define TIMER_FREQUENCY 60
 
+struct system;
 
 struct cpu {
-  uint8_t V[16];
-  uint8_t sp;
+  uint8_t  V[16];
+  uint8_t  stack_pointer;
   uint16_t program_counter;
   uint16_t I;
 };
 
+struct opcode {
+    uint8_t  Group;
+    uint8_t  X;
+    uint8_t  Y;
+    uint8_t  N;
+    uint8_t  NN;
+    uint16_t NNN;
+};
+
+struct opcode_entry {
+   void (*exec)( struct system *system, struct opcode op_code );
+};
+
 struct system {
   /*
-0x000-0x1FF : Original interpreter ROM
-0x200       : program entry point
-0xEA0-0xEFF : reserved
-0xF00-0xFFF : Display mem, Ignored
-*/
-  uint8_t *memory;
+   * 0x000-0x1FF : Original interpreter ROM |0x200: program entry point |0xEA0-0xEFF : reserved |0xF00-0xFFF : Display mem, Ignored
+   */
+  uint8_t memory[4096];
   uint16_t stack[16];
   struct cpu cpu;
   uint8_t sound_timer;
   uint8_t delay_timer;
-  bool keyboard[16];
-  bool display[CHIP8_SCREEN_WIDTH * CHIP8_SCREEN_HEIGHT];
-
+  uint8_t keyboard[16];
+  uint8_t display[CHIP8_SCREEN_WIDTH * CHIP8_SCREEN_HEIGHT];
   struct opcode_entry op_hashmap[16];
-
 };
 
 const unsigned char FontSet[80] = {
@@ -60,8 +65,7 @@ const unsigned char FontSet[80] = {
     0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-
-struct system system_initialize(struct allocator *allocator, file_t file);
-void system_execute_opcode(struct system *system);
+struct system InitializeSystem( File_t file );
+void Execute(struct system* System);
 
 #endif

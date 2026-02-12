@@ -1,7 +1,6 @@
-#include "allocator.h"
-#include "system.h"
+#include "./system.h"
 #include <string.h>
-#include "./opcode.h"
+#include <stdlib.h>
 
 struct opcode opcode_get(struct system *system) {
     return (struct opcode) {
@@ -16,54 +15,54 @@ struct opcode opcode_get(struct system *system) {
 
 void opcode_0x0( struct system *system, struct opcode op_code ) {
     if ( op_code.NN == 0xE0 ) {
-        memset( &system->display , false , (CHIP8_SCREEN_WIDTH * CHIP8_SCREEN_HEIGHT ));
+        memset( &system->display , 0 , (CHIP8_SCREEN_WIDTH * CHIP8_SCREEN_HEIGHT ));
+        system->cpu.program_counter += 2;
     }
     else if ( op_code.NN == 0xEE ) {
-        // [NOTE] : Implement Later Subroutines
-        system->cpu.sp--;
-        system->cpu.program_counter = system->stack[system->cpu.sp];
-
+        system->cpu.stack_pointer--;
+        system->cpu.program_counter = system->stack[system->cpu.stack_pointer];
     }
 }
 
 void opcode_0x1( struct system *system, struct opcode op_code ) {
-        system->cpu.program_counter = op_code.NNN;
+    system->cpu.program_counter = op_code.NNN;
 }
 
 void opcode_0x2( struct system *system, struct opcode op_code ) {
-    // [NOTE] : Implement Later Subroutine
-
-    system->stack[system->cpu.sp] = system->cpu.program_counter;
-    system->cpu.sp++;
+    system->stack[system->cpu.stack_pointer] = system->cpu.program_counter + 2;
+    system->cpu.stack_pointer++;
     system->cpu.program_counter = op_code.NNN;
-
 }
 
 void opcode_0x3( struct system *system, struct opcode op_code ) {
     if( system->cpu.V[ op_code.X ] == op_code.NN ) {
         system->cpu.program_counter += 2;
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x4( struct system *system, struct opcode op_code ) {
     if( system->cpu.V[ op_code.X ] != op_code.NN ) {
         system->cpu.program_counter += 2;
     }
-
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x5( struct system *system, struct opcode op_code ) {
     if( system->cpu.V[ op_code.X ] == system->cpu.V[ op_code.Y ] ) {
         system->cpu.program_counter += 2;
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x6( struct system *system, struct opcode op_code ) {
     system->cpu.V[ op_code.X ] = op_code.NN;
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x7( struct system *system, struct opcode op_code ) {
     system->cpu.V[ op_code.X ] += op_code.NN;
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x8( struct system *system, struct opcode op_code ) {
@@ -106,16 +105,19 @@ void opcode_0x8( struct system *system, struct opcode op_code ) {
             printf(" huh ? \n");
         }break;
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0x9( struct system *system, struct opcode op_code ) {
     if (system->cpu.V[op_code.X] != system->cpu.V[op_code.Y]) {
         system->cpu.program_counter += 2;
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0xA( struct system *system, struct opcode op_code ) {
     system->cpu.I = op_code.NNN;
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0xB( struct system *system, struct opcode op_code ) {
@@ -124,6 +126,7 @@ void opcode_0xB( struct system *system, struct opcode op_code ) {
 
 void opcode_0xC( struct system *system, struct opcode op_code ) {
     system->cpu.V[op_code.X] = (rand() % 256) & op_code.NN;
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0xD( struct system *system, struct opcode op_code ) {
@@ -150,10 +153,11 @@ void opcode_0xD( struct system *system, struct opcode op_code ) {
                 if (system->display[display_index]) {
                     system->cpu.V[0xF] = 1;
                 }
-                system->display[display_index] ^= true;
+                system->display[display_index] ^= 1;
             }
         }
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0xE( struct system *system, struct opcode op_code ) {
@@ -168,6 +172,7 @@ void opcode_0xE( struct system *system, struct opcode op_code ) {
             system->cpu.program_counter += 2;
         }
     }
+    system->cpu.program_counter += 2;
 }
 
 void opcode_0xF( struct system *system, struct opcode op_code ) {
@@ -177,16 +182,16 @@ void opcode_0xF( struct system *system, struct opcode op_code ) {
             break;
 
         case 0x0A: {
-            bool key_pressed = false;
+            _Bool key_pressed = 0;
             for (uint8_t i = 0; i < 16; i++) {
                 if (system->keyboard[i]) {
                     system->cpu.V[op_code.X] = i;
-                    key_pressed = true;
+                    key_pressed = 1;
                     break;
                 }
             }
             if (!key_pressed) {
-                system->cpu.program_counter -= 2;
+                return; // Don't increment PC, repeat this instruction
             }
             break;
         }
@@ -227,9 +232,10 @@ void opcode_0xF( struct system *system, struct opcode op_code ) {
             }
             break;
     }
+    system->cpu.program_counter += 2;
 }
 
-void create_opcode_hashmap(struct system* system) {
+void CreateOpcodeTable(struct system* system) {
 
     system->op_hashmap[0x0].exec = opcode_0x0;
     system->op_hashmap[0x1].exec = opcode_0x1;
